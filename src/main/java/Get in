@@ -1,0 +1,106 @@
+package Practical_14;
+
+import java.util.*;
+import java.util.function.Supplier;
+
+public class TemplateFunctional {
+    
+    static class Pair {
+        final String key;
+        final String value;
+        
+        Pair(String key, String value) {
+            this.key = key;
+            this.value = value;
+        }
+    }
+
+    @FunctionalInterface
+    interface HashTable {
+        void insert(String key, String value);
+        String lookup(String key);
+    }
+
+    public static void main(String[] args) {
+        int m = 1_000_000;
+        
+        // Create data using functional approach
+        Pair[] data = createShuffledData(m);
+        
+        int[] alphas = {75, 80, 85, 90, 95};
+        int repetitions = 30;
+        int queryCount = 100_000;
+
+        printHeader();
+
+        Arrays.stream(alphas)
+                .mapToObj(alpha -> new TestConfig(alpha, (alpha * m) / 100))
+                .forEach(config -> runTest(config, data, queryCount, repetitions));
+    }
+
+    private static Pair[] createShuffledData(int m) {
+        List<Integer> keys = new ArrayList<>(m);
+        for (int i = 1; i <= m; i++) keys.add(i);
+        Collections.shuffle(keys);
+        
+        Pair[] data = new Pair[m];
+        for (int i = 0; i < m; i++) {
+            data[i] = new Pair(keys.get(i).toString(), Integer.toString(i + 1));
+        }
+        return data;
+    }
+
+    private static void runTest(TestConfig config, Pair[] allData, 
+                                int queryCount, int repetitions) {
+        Pair[] usedData = Arrays.copyOfRange(allData, 0, config.n());
+        
+        // Create and initialize tables
+        HashTable openTable = createAndPopulateTable(
+                () -> new openHash(allData.length), usedData);
+        HashTable chainTable = createAndPopulateTable(
+                () -> new chainHash(allData.length), usedData);
+        
+        String[] queries = generateQueries(usedData, queryCount);
+        
+        // Run benchmarks
+        double openAvg = benchmarkTable(openTable, queries, repetitions);
+        double chainAvg = benchmarkTable(chainTable, queries, repetitions);
+        
+        printResult(config.alphaPercent(), config.n(), openAvg, chainAvg);
+    }
+
+    private static HashTable createAndPopulateTable(Supplier<HashTable> factory, Pair[] data) {
+        HashTable table = factory.get();
+        Arrays.stream(data).forEach(p -> table.insert(p.key, p.value));
+        return table;
+    }
+
+    private static String[] generateQueries(Pair[] usedData, int count) {
+        Random random = new Random();
+        String[] queries = new String[count];
+        Arrays.setAll(queries, i -> usedData[random.nextInt(usedData.length)].key);
+        return queries;
+    }
+
+    private static double benchmarkTable(HashTable table, String[] queries, int repetitions) {
+        return IntStream.range(0, repetitions)
+                .mapToDouble(r -> measureTime(() -> {
+                    for (String q : queries) table.lookup(q);
+                }))
+                .average()
+                .orElse(0.0);
+    }
+
+    private static double measureTime(Runnable action) {
+        long start = System.currentTimeMillis();
+        action.run();
+        return (System.currentTimeMillis() - start) / 1000.0;
+    }
+
+    record TestConfig(int alphaPercent, int n) {}
+
+    private static void printHeader() { /* same as before */ }
+    private static void printResult(int alphaPercent, int n, double openAvg, double chainAvg) { /* same as before */ }
+    private static String formatK(int n) { /* same as before */ }
+    private static String formatOneOverOneMinusAlpha(int alphaPercent) { /* same as before */ }
+}
