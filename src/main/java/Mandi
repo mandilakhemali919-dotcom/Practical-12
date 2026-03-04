@@ -1,0 +1,35 @@
+import java.util.*;
+
+public class chainHash {
+    private final List<Map<String, String>> table;
+    private final int m;
+    private int size = 0;
+
+    public chainHash(int m) {
+        this.m = m;
+        this.table = new ArrayList<>(m);
+        for (int i = 0; i < m; i++) {
+            table.add(new LinkedHashMap<>()); // Preserves insertion order
+        }
+    }
+
+    private int hash(String key) {
+        return Math.abs(key.hashCode() % m);
+    }
+
+    public void insert(String key, String value) {
+        Map<String, String> bucket = table.get(hash(key));
+        if (!bucket.containsKey(key)) size++;
+        bucket.put(key, value);
+    }
+
+    public String lookup(String key) {
+        return table.get(hash(key)).get(key);
+    }
+
+    public String remove(String key) {
+        Map<String, String> bucket = table.get(hash(key));
+        if (bucket.containsKey(key)) size--;
+        return bucket.remove(key);
+    }
+}
